@@ -17,6 +17,8 @@ public partial class NiFiTestContext : DbContext
 
     public virtual DbSet<ListaFatture> ListaFatture { get; set; }
 
+    public virtual DbSet<Servizi> Servizi { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AnniFatture>(entity =>
@@ -40,6 +42,27 @@ public partial class NiFiTestContext : DbContext
             entity.Property(e => e.PercorsoFile)
                 .IsRequired()
                 .HasMaxLength(2048);
+        });
+
+        modelBuilder.Entity<Servizi>(entity =>
+        {
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Host)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("host");
+            entity.Property(e => e.Password)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("password");
+            entity.Property(e => e.Servizio)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasColumnName("servizio");
+            entity.Property(e => e.Utente)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("utente");
         });
 
         OnModelCreatingPartial(modelBuilder);

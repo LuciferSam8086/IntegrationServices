@@ -22,6 +22,10 @@
       {
          "Name": "[dbo].[ListaFatture]",
          "ObjectType": 0
+      },
+      {
+         "Name": "[dbo].[Servizi]",
+         "ObjectType": 0
       }
    ],
    "UiHint": null,

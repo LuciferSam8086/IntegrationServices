@@ -25,12 +25,12 @@
         public void Map(IEndpointRouteBuilder app)
         {
             _logger.LogInformation("DI works in HelloWorld controller!");
-            app.MapPost("/checkfiles", (CheckFiles handler) => handler.Fool())
+            app.MapGet("/checkfiles", (CheckFiles handler) => handler.checkFileMethod())
                .WithName("checkfiles");
 
         }
 
-        private async Task<IResult> Fool()
+        private async Task<IResult> checkFileMethod()
         {
             // Read from configuration the path
             //var baseDirectory = _configuration.GetSection("ProgramSettings").GetValue<string>("DirectoryToScan");

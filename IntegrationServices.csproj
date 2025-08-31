@@ -11,11 +11,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentFTP" Version="53.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.8" />
     <PackageReference Include="Parquet.Net" Version="5.2.0" />
-    <PackageReference Include="Scrutor" Version="6.1.0" />
   </ItemGroup>
 
 </Project>

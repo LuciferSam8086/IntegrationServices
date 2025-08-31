@@ -1,5 +1,6 @@
 ﻿using IntegrationServices.Models;
 using Microsoft.EntityFrameworkCore;
+using Parquet;
 using Parquet.Serialization;
 using System.Threading.Channels;
 
@@ -25,11 +26,10 @@ namespace IntegrationServices.BackgroundWorkers
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("CheckFilesWorker is starting.");
-             
+
 
             await foreach (var year in _channel.Reader.ReadAllAsync(stoppingToken))
             {
-                // Start processing in the background but respect concurrency limit
                 _ = ProcessYearAsync(year, stoppingToken);
             }
         }
@@ -55,7 +55,7 @@ namespace IntegrationServices.BackgroundWorkers
 
                 var parquetData = new List<ParquetData>() { };
 
-                foreach (var file in Directory.EnumerateFiles(fullPath, "*.pdf",enumerationOptions: new EnumerationOptions() { RecurseSubdirectories = false }))
+                foreach (var file in Directory.EnumerateFiles(fullPath, "*.pdf", enumerationOptions: new EnumerationOptions() { RecurseSubdirectories = false }))
                 {
                     var fileInfo = new FileInfo(file);
 
@@ -64,8 +64,8 @@ namespace IntegrationServices.BackgroundWorkers
                     var hashString = Convert.ToHexString(hashBytes);
 
                     var exists = (from f in dbContext.ListaFatture
-                                 where f.FileNameHash == hashString
-                                 select 1).Any();
+                                  where f.FileNameHash == hashString
+                                  select 1).Any();
 
                     if (!exists)
                     {
@@ -85,20 +85,21 @@ namespace IntegrationServices.BackgroundWorkers
                         // Se la data di aggiornamento è cambiata, aggiorna il record
                         var rows = await dbContext.ListaFatture.Where(y => y.FileNameHash == hashString && y.UltimaDataAggiornamento < fileInfo.LastWriteTimeUtc)
                             .ExecuteUpdateAsync(s => s
-                            .SetProperty(f => f.UltimaDataAggiornamento, fileInfo.LastWriteTime),token);
+                            .SetProperty(f => f.UltimaDataAggiornamento, fileInfo.LastWriteTime), token);
 
-                        _logger.LogInformation("Updated {Rows} rows for file {File}", rows, fileInfo.FullName); 
+                        _logger.LogInformation("Updated {Rows} rows for file {File}", rows, fileInfo.FullName);
 
                         addRecordToParquet = rows > 0;
                     }
 
-                    if(addRecordToParquet)
+                    if (addRecordToParquet)
                     {
                         _logger.LogInformation("File {File} is new or updated, will be added to Parquet export", fileInfo.FullName);
 
-                        parquetData.Add( new ParquetData
+                        parquetData.Add(new ParquetData
                         {
                             FilePath = fileInfo.FullName,
+                            FileName = fileInfo.Name
                         });
                     }
 
@@ -108,19 +109,31 @@ namespace IntegrationServices.BackgroundWorkers
                 // once the year is processed, if there are new or updated files, export to Parquet
                 if (parquetData.Count > 0)
                 {
-                    await ParquetSerializer.SerializeAsync(parquetData, $"d:\\source\\filesDaImportare_{year}.parquet", cancellationToken: token);
+                    using var memoryStream = new MemoryStream();
+
+                    await ParquetSerializer.SerializeAsync(parquetData, memoryStream, cancellationToken: token/*, options: new ParquetSerializerOptions() { CompressionMethod =  CompressionMethod.Snappy }*/);
+
+                    // Save memorystream to a file
+                    var nifiFtpConnection = await (from s in dbContext.Servizi
+                                                   where s.Servizio == "Nifi_FTP_Parquet"
+                                                   select s).SingleAsync();
+
+                    using var ftpClient = new FluentFTP.FtpClient(nifiFtpConnection.Host, user: nifiFtpConnection.Utente, pass: nifiFtpConnection.Password, port: nifiFtpConnection.Porta ?? 0);
+
+                    ftpClient.Connect();
+
+                    ftpClient.UploadBytes(memoryStream.ToArray(), $"/filesDaImportare_{year}.parquet", FluentFTP.FtpRemoteExists.Overwrite);
+
+                    ftpClient.Disconnect();
+
                 }
-
-                //// Simulate scan + DB update + Parquet export
-                //await Task.Delay(TimeSpan.FromSeconds(10), token);
-
                 _logger.LogInformation("Finished year {Year}", year);
 
             }
             catch (Exception ex)
             {
                 _logger.LogCritical("Error processing year {Year} {message}", year, ex.Message);
-                
+
             }
             finally
             {

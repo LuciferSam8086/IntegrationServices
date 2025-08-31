@@ -17,7 +17,7 @@ namespace IntegrationServices
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
 
-            builder.Services.AddSingleton(Channel.CreateUnbounded<int>());  
+            builder.Services.AddSingleton(Channel.CreateUnbounded<int>());
             builder.Services.AddHostedService<BackgroundWorkers.CheckFilesWorker>();
 
             builder.Services.RegisterAllEndpoints(typeof(Program).Assembly);
@@ -32,11 +32,17 @@ namespace IntegrationServices
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
+
+            }
+            else
+            {
+                app.UseHttpsRedirection();
             }
 
-            app.UseHttpsRedirection();
 
-            app.UseAuthorization();
+
+
+            //app.UseAuthorization();
 
 
             // Auto‑map all endpoints
